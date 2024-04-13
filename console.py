@@ -4,8 +4,8 @@
 import cmd
 from datetime import datetime
 import models
-from models.base_model import BaseModel
 from models.amenity import Amenity
+from models.base_model import BaseModel
 from models.city import City
 from models.place import Place
 from models.review import Review
@@ -33,46 +33,36 @@ class HBNBCommand(cmd.Cmd):
         """Quit command to exit the program"""
         return True
 
+    def _key_value_parser(self, args):
+        """creates a dictionary from a list of strings"""
+        new_dict = {}
+        for arg in args:
+            if "=" in arg:
+                kvp = arg.split('=', 1)
+                key = kvp[0]
+                value = kvp[1]
+                if value[0] == value[-1] == '"':
+                    value = shlex.split(value)[0].replace('_', ' ')
+                else:
+                    try:
+                        value = int(value)
+                    except:
+                        try:
+                            value = float(value)
+                        except:
+                            continue
+                new_dict[key] = value
+        return new_dict
+
     def do_create(self, arg):
         """Creates a new instance of a class"""
-        def isfloat(x):
-            try:
-                a = float(x)
-            except ValueError:
-                return False
-            else:
-                return True
-
-        def isint(x):
-            try:
-                a = float(x)
-                b = int(a)
-            except ValueError:
-                return False
-            else:
-                return a == b
-
-        args = shlex.split(arg)
+        args = arg.split()
         if len(args) == 0:
             print("** class name missing **")
             return False
         if args[0] in classes:
-            instance = classes[args[0]]()
-            # loop to read ALL params
-            for i in range(1, len(args)):
-                d = {}
-                kv = args[i].split('=')
-                # Replace _ with space
-                kv[1] = kv[1].replace('_', ' ')
-                # Float / Integer
-                if isint(kv[1]):
-                    kv[1] = int(kv[1])
-                elif isfloat(kv[1]):
-                    kv[1] = float(kv[1])
-                d[kv[0]] = kv[1]
-                k = kv[0]
-                v = d[kv[0]]
-                setattr(instance, k, v)
+            new_dict = self._key_value_parser(args[1:])
+            instance = classes[args[0]](**new_dict)
         else:
             print("** class doesn't exist **")
             return False

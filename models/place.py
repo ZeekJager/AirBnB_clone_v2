@@ -1,24 +1,27 @@
 #!/usr/bin/python
 """ holds class Place"""
-from models.base_model import BaseModel, Base
 import models
+from models.base_model import BaseModel, Base
+from os import getenv
 import sqlalchemy
-from sqlalchemy import Column, String, Integer, ForeignKey, Float, Table
+from sqlalchemy import Column, String, Integer, Float, ForeignKey, Table
 from sqlalchemy.orm import relationship
 
-
-if models.storage_type == "db":
-    place_amenity = Table('place_amenity',
-                          Base.metadata,
+if models.storage_t == 'db':
+    place_amenity = Table('place_amenity', Base.metadata,
                           Column('place_id', String(60),
-                                 ForeignKey('places.id'), primary_key=True),
+                                 ForeignKey('places.id', onupdate='CASCADE',
+                                            ondelete='CASCADE'),
+                                 primary_key=True),
                           Column('amenity_id', String(60),
-                                 ForeignKey('amenities.id'), primary_key=True))
+                                 ForeignKey('amenities.id', onupdate='CASCADE',
+                                            ondelete='CASCADE'),
+                                 primary_key=True))
 
 
 class Place(BaseModel, Base):
     """Representation of Place """
-    if models.storage_type == "db":
+    if models.storage_t == 'db':
         __tablename__ = 'places'
         city_id = Column(String(60), ForeignKey('cities.id'), nullable=False)
         user_id = Column(String(60), ForeignKey('users.id'), nullable=False)
@@ -31,8 +34,9 @@ class Place(BaseModel, Base):
         latitude = Column(Float, nullable=True)
         longitude = Column(Float, nullable=True)
         reviews = relationship("Review", backref="place")
-        amenities = relationship(
-            "Amenity", secondary="place_amenity", viewonly=False)
+        amenities = relationship("Amenity", secondary="place_amenity",
+                                 backref="place_amenities",
+                                 viewonly=False)
     else:
         city_id = ""
         user_id = ""
@@ -46,26 +50,29 @@ class Place(BaseModel, Base):
         longitude = 0.0
         amenity_ids = []
 
-        @property
-        def reviews(self):
-            '''getter'''
-            list = []
-            c = models.storage.all(Review)
-            for item in c.values():
-                if item.place_id == self.id:
-                    list.append(item)
-            return list
-
-        @property
-        def amenities(self):
-            '''getter'''
-            list = []
-            c = models.storage.all(Amenity)
-            for item in c.values():
-                if item.place_id == self.id:
-                    list.append(item)
-            return list
-
     def __init__(self, *args, **kwargs):
         """initializes Place"""
         super().__init__(*args, **kwargs)
+
+    if models.storage_t != 'db':
+        @property
+        def reviews(self):
+            """getter attribute returns the list of Review instances"""
+            from models.review import Review
+            review_list = []
+            all_reviews = models.storage.all(Review)
+            for review in all_reviews.values():
+                if review.place_id == self.id:
+                    review_list.append(review)
+            return review_list
+
+        @property
+        def amenities(self):
+            """getter attribute returns the list of Amenity instances"""
+            from models.amenity import Amenity
+            amenity_list = []
+            all_amenities = models.storage.all(Amenity)
+            for amenity in all_amenities.values():
+                if amenity.place_id == self.id:
+                    amenity_list.append(amenity)
+            return amenity_list
